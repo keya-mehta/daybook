@@ -1,6 +1,7 @@
 // Demo mode: the real app running on sample data kept only in this browser (localStorage).
 // No account, no server, no reminders or maps — used to try Daybook before the database is set up.
-import { useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { computeLocalReminders, useLocalNotifier } from './localNotify';
 import { StoreContext, type StoreCtx, type Data } from './store';
 import { toast } from './toast';
 import { addDays, localParts, zonedToUtc } from '@engine/time.ts';
@@ -88,6 +89,12 @@ function empty(): Data {
 export function DemoStoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Data>(load);
   const latest = useRef(data);
+  const [minute, setMinute] = useState(0);
+  useEffect(() => { const t = setInterval(() => setMinute((m) => m + 1), 60_000); return () => clearInterval(t); }, []);
+  // reminders are worked out on this device from the plans and tasks
+  const reminders = useMemo(() => computeLocalReminders(data, new Date()), [data, minute]); // eslint-disable-line react-hooks/exhaustive-deps
+  const remRef = useRef(reminders); remRef.current = reminders;
+  useLocalNotifier(useCallback(() => remRef.current, []), reminders);
   const commit = (d: Data) => { latest.current = d; setData(d); try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* full */ } };
   const upsert = (d: Data, table: string, rows: Record<string, unknown>[]): Data => {
     if (table === 'households') return { ...d, household: { ...d.household, ...rows[0] } };
@@ -105,7 +112,7 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
   };
   const ctx = {
     session: { user: { id: 'demo-user', email: 'demo' } }, authReady: true, householdId: 'demo', households: [{ id: 'demo', name: data.household.name }], setHouseholdId: () => {},
-    data, loading: false, loadError: null, reload: async () => {}, me: data.members[0], canEdit: true,
+    data: { ...data, reminders }, loading: false, loadError: null, reload: async () => {}, me: data.members[0], canEdit: true,
     save: async (table: string, row: Record<string, unknown>, opts?: { quiet?: boolean; message?: string }) => {
       const next = upsert(latest.current, table, [row]);
       commit(next);

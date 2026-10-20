@@ -4,7 +4,7 @@ import { useStore, useData } from '../lib/store';
 import { supabase, callFn } from '../lib/supabase';
 import { Banner, Chips, MultiChips, Q, Sheet } from '../ui/kit';
 import { BackTo } from './More';
-import { PushPrompt } from './Reminders';
+import { PushPrompt, LocalNotifyPrompt } from './Reminders';
 import { disablePush, pushState, testPush, isIOS, isStandalone, type PushState } from '../lib/push';
 import { toast } from '../lib/toast';
 import { timeLabel } from '../lib/format';
@@ -86,6 +86,16 @@ export function Settings() {
             {maps.status === 'error' && <Banner>Google Maps returned an error: {maps.error}</Banner>}
             {!hh.home_address && <Banner>Add your home address above so drives from home can be worked out.</Banner>}
           </div>
+        </div>
+      )}
+
+      {demo && (
+        <div className="section">
+          <div className="section-title">Notifications</div>
+          <LocalNotifyPrompt />
+          <div className="section-title" style={{ marginTop: 22 }}>Phone calendar</div>
+          <p className="ink2">Put your plans into your phone's own calendar so it alerts you even when Daybook is closed. Tap below, then open the downloaded file and choose <b>Add All</b>. Do it again after big changes.</p>
+          <button className="btn" onClick={() => exportIcs(data)}>Add plans to my phone calendar</button>
         </div>
       )}
 
@@ -243,6 +253,9 @@ function exportIcs(data: ReturnType<typeof useData>) {
     const r = parseRule(e.rrule);
     if (r) lines.push('RRULE:' + formatRule(r).replace(/UNTIL=(\d{8})/, 'UNTIL=$1T235959Z'));
     for (const x of e.exdates ?? []) lines.push(`EXDATE;TZID=${tz}:${x.replace(/-/g, '')}T${stamp(e.start_at).slice(9)}`);
+    for (const off of e.reminder_offsets ?? data.household.default_reminders) {
+      lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(e.title)}`, `TRIGGER:-PT${off}M`, 'END:VALARM');
+    }
     lines.push('END:VEVENT');
   }
   lines.push('END:VCALENDAR');

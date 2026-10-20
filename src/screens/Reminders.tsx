@@ -8,9 +8,29 @@ import type { ReminderRow } from '@engine/types.ts';
 import { BackTo } from './More';
 import { dayLabel, fmtTime, timeLabel } from '../lib/format';
 import { pushState, enablePush, type PushState } from '../lib/push';
+import { enableLocalNotify, localNotifyState, type LocalNotifyState } from '../lib/localNotify';
 import { toast } from '../lib/toast';
 
+export function LocalNotifyPrompt() {
+  const [st, setSt] = useState<LocalNotifyState>(() => localNotifyState());
+  if (st === 'on') return <Banner kind="ok">Notifications are on. They appear while Daybook is open — in a browser tab or from your Home Screen. For alerts even when it's closed, see Settings → Phone calendar.</Banner>;
+  if (st === 'denied') return <Banner>Notifications are blocked for this site. Allow them in your browser or phone settings, then reload.</Banner>;
+  if (st === 'unsupported') return <Banner>This browser can't show notifications. On iPhone: Share → Add to Home Screen, then open Daybook from the Home Screen.</Banner>;
+  return (
+    <Banner kind="info">
+      <div>Get a notification when it's time to leave, and before each plan.</div>
+      <button className="btn primary" style={{ marginTop: 8 }} onClick={async () => { try { await enableLocalNotify(); setSt('on'); } catch (e) { toast((e as Error).message, 'error'); } }}><IBell />Turn on notifications</button>
+    </Banner>
+  );
+}
+
 export function PushPrompt({ compact }: { compact?: boolean }) {
+  const { demo } = useStore();
+  if (demo) return <LocalNotifyPrompt />;
+  return <ServerPushPrompt compact={compact} />;
+}
+
+function ServerPushPrompt({ compact }: { compact?: boolean }) {
   const [st, setSt] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { pushState().then(setSt); }, []);

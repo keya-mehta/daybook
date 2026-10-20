@@ -10,9 +10,11 @@ import { shortDay, timeLabel, longDate } from '../lib/format';
 import { ISpark, ITalk, IPlus } from '../ui/icons';
 import { toast } from '../lib/toast';
 import { uid } from '../ui/kit';
+import { TimeWheel } from '../ui/Wheel';
 
 type Repeat = 'none' | 'daily' | 'weekdays' | 'weekly' | 'biweekly' | 'monthly' | 'days';
 interface Draft {
+  base: string | null; detail: string;
   title: string; category: Category; personIds: string[]; date: string; start: string | null; duration: number; allDay: boolean;
   location: string; transport: TransportMode; vehicleId: string | null; driverId: string | null | 'self'; pickupFrom: string | null;
   lead: number | null; repeat: Repeat; repeatDays: number[]; reminders: number[]; remindLeave: boolean;
@@ -20,10 +22,20 @@ interface Draft {
   newTasks: { title: string; kind: TaskRow['kind']; source: TaskRow['source']; daysBefore: number; on: boolean }[];
 }
 
-const TITLES = ['Doctor', 'Dentist', 'School', 'Class', 'Tuition', 'Meeting', 'Puja', 'Lunch', 'Dinner', 'Shopping', 'Bank', 'Salon'];
+const TITLES = ['Tuition', 'Class', 'Doctor', 'School', 'Meeting', 'Puja', 'Lunch', 'Dinner', 'Shopping', 'Bank', 'Salon'];
+// a follow-up question for some kinds of plan; the answer becomes part of the title
+const DETAILS: Record<string, { q: string; options: string[]; placeholder: string; compose: (d: string) => string }> = {
+  Tuition: { q: 'Which tuition?', options: ['Maths', 'Science', 'English', 'Hindi', 'Physics', 'Chemistry', 'Biology', 'Accounts', 'Economics', 'Computer'], placeholder: 'Type the subject', compose: (d) => `${d} tuition` },
+  Class: { q: 'Which class?', options: ['Dance', 'Music', 'Swimming', 'Art', 'Yoga', 'Karate', 'Cricket', 'Football', 'Tennis', 'Abacus'], placeholder: 'Type the class', compose: (d) => `${d} class` },
+  Doctor: { q: 'Which doctor?', options: ['Dentist', 'Eye doctor', 'Skin doctor', 'Child doctor', 'Physio', 'Check-up', 'Blood test'], placeholder: 'e.g. Dr. Shah, ENT', compose: (d) => (/^dr\.?\s/i.test(d) || /doctor|dentist|physio|test|check/i.test(d) ? d : `Doctor – ${d}`) },
+};
 const DURATIONS: [string, number][] = [['15 min', 15], ['30 min', 30], ['45 min', 45], ['1 hour', 60], ['1½ hours', 90], ['2 hours', 120], ['3 hours', 180], ['Half day', 240]];
-const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM – 10 PM
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function repeatText(d: Draft) {
+  const day = DOW_LONG[weekdayOf(d.date)];
+  return ({ daily: 'every day', weekdays: 'every Monday to Friday', weekly: `every ${day}`, biweekly: `every other ${day}`, monthly: `on the ${+d.date.slice(8)}${['th','st','nd','rd'][(+d.date.slice(8) % 10 < 4 && Math.floor(+d.date.slice(8) / 10) !== 1) ? +d.date.slice(8) % 10 : 0]} of every month`, days: `every ${(d.repeatDays.length ? d.repeatDays : [weekdayOf(d.date)]).map((x) => DOW_LONG[x]).join(', ')}`, none: '' } as Record<Repeat, string>)[d.repeat];
+}
 const DOW_RR = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 function guessCategory(t: string): Category {
@@ -47,7 +59,7 @@ export function AddPlan({ onClose, editId, date: initialDate, personId, editMode
   const [mode, setMode] = useState<'tap' | 'type'>(existing ? 'tap' : 'tap');
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => existing ? fromEvent(existing, tz, initialDate, editMode) : {
-    title: '', category: 'appointment', personIds: personId ? [personId] : [], date: initialDate ?? today, start: null, duration: 60, allDay: false,
+    base: null, detail: '', title: '', category: 'appointment', personIds: personId ? [personId] : [], date: initialDate ?? today, start: '10:00', duration: 60, allDay: false,
     location: '', transport: 'none', vehicleId: null, driverId: null, pickupFrom: null, lead: null, repeat: 'none', repeatDays: [],
     reminders: data.household.default_reminders, remindLeave: true, needsConfirmation: false, tentative: false, checklist: [], notes: '', prepMin: 0, newTasks: [],
   });
@@ -67,6 +79,7 @@ export function AddPlan({ onClose, editId, date: initialDate, personId, editMode
   const checklists = d0?.notes.filter((n) => n.kind === 'checklist') ?? [];
 
   const startMin = draft.start ? timeToMin(draft.start) : null;
+  const atTime = !draft.allDay && draft.start ? ` at ${timeLabel(draft.start)}` : '';
   const endLabel = startMin != null ? timeLabel(minToTime(startMin + draft.duration)) : null;
   const needsCar = ['drop', 'drop_pickup', 'wait'].includes(draft.transport);
   const valid = draft.title.trim() && draft.date && (draft.allDay || draft.start);
@@ -148,10 +161,26 @@ export function AddPlan({ onClose, editId, date: initialDate, personId, editMode
           </Q>
 
           <Q label="What is it?">
-            <input className="input" value={draft.title} placeholder="e.g. Dentist, Dance class" onChange={(e) => set({ title: e.target.value, category: guessCategory(e.target.value) })} />
-            <div className="chips scroll" style={{ marginTop: 8 }}>
-              {TITLES.map((t) => <button key={t} type="button" className={`chip ${draft.title === t ? 'on' : ''}`} onClick={() => set({ title: t, category: guessCategory(t) })}>{t}</button>)}
+            <div className="chips">
+              {TITLES.map((t) => <button key={t} type="button" className={`chip ${draft.base === t ? 'on' : ''}`} onClick={() => set({ base: t, detail: '', title: t, category: guessCategory(t) })}>{t}</button>)}
+              <button type="button" className={`chip dashed ${draft.base === 'other' ? 'on' : ''}`} onClick={() => set({ base: 'other', detail: '', title: '' })}>Something else…</button>
             </div>
+            {draft.base && DETAILS[draft.base] && (() => {
+              const d = DETAILS[draft.base];
+              const pick = (v: string) => { const title = v.trim() ? d.compose(v.trim()) : draft.base!; set({ detail: v, title, category: guessCategory(title + ' ' + draft.base) }); };
+              return (
+                <div className="pill-q" style={{ background: 'var(--sage-tint)' }}>
+                  <div className="q-label">{d.q}</div>
+                  <div className="chips">{d.options.map((o) => <button key={o} type="button" className={`chip ${draft.detail === o ? 'on' : ''}`} onClick={() => pick(o)}>{o}</button>)}</div>
+                  <input className="input" style={{ marginTop: 8 }} placeholder={d.placeholder} value={d.options.includes(draft.detail) ? '' : draft.detail} onChange={(e) => pick(e.target.value)} />
+                </div>
+              );
+            })()}
+            {(draft.base === 'other' || !draft.base || !DETAILS[draft.base]) && (
+              <input className="input" style={{ marginTop: 8 }} value={draft.title} placeholder={draft.base && draft.base !== 'other' ? 'Change the name if you like' : 'What is it? e.g. Passport office'}
+                onChange={(e) => set({ title: e.target.value, category: guessCategory(e.target.value) })} />
+            )}
+            {draft.title && <div className="time-summary">Will be saved as <b>{draft.title}</b></div>}
           </Q>
 
           <Q label="Which day?" hint={longDate(draft.date)}>
@@ -167,26 +196,13 @@ export function AddPlan({ onClose, editId, date: initialDate, personId, editMode
             </div>
           </Q>
 
-          <Q label="What time?" hint={draft.allDay ? 'All day' : draft.start ? `${timeLabel(draft.start)} – ${endLabel}` : 'tap the hour, then the minutes'}>
-            <div className="chips scroll">
-              <button type="button" className={`chip ${draft.allDay ? 'on' : ''}`} onClick={() => set({ allDay: !draft.allDay })}>All day</button>
-              {!draft.allDay && HOURS.map((h) => {
-                const on = startMin != null && Math.floor(startMin / 60) === h;
-                return <button key={h} type="button" className={`chip ${on ? 'on' : ''}`} onClick={() => set({ start: minToTime(h * 60 + (startMin != null ? startMin % 60 : 0)) })}>
-                  {h % 12 === 0 ? 12 : h % 12} {h < 12 ? 'AM' : 'PM'}
-                </button>;
-              })}
+          <Q label="What time?">
+            <div className="chips" style={{ marginBottom: 10 }}>
+              <button type="button" className={`chip ${!draft.allDay ? 'on' : ''}`} onClick={() => set({ allDay: false, start: draft.start ?? '10:00' })}>At a time</button>
+              <button type="button" className={`chip ${draft.allDay ? 'on' : ''}`} onClick={() => set({ allDay: true })}>All day</button>
             </div>
-            {!draft.allDay && (
-              <div className="row wrap" style={{ marginTop: 8, gap: 8 }}>
-                <Chips options={[0, 15, 30, 45].map((m) => ({ label: `:${String(m).padStart(2, '0')}`, value: String(m) }))}
-                  value={startMin != null ? String(startMin % 60) : null}
-                  onChange={(m) => set({ start: minToTime(Math.floor((startMin ?? 9 * 60) / 60) * 60 + +m) })} />
-                <label className="chip dashed" style={{ position: 'relative' }}>Exact time
-                  <input type="time" value={draft.start ?? ''} onChange={(e) => e.target.value && set({ start: e.target.value })} style={{ position: 'absolute', inset: 0, opacity: 0 }} aria-label="Exact time" />
-                </label>
-              </div>
-            )}
+            {!draft.allDay && <TimeWheel value={draft.start ?? '10:00'} onChange={(v) => set({ start: v })} />}
+            {!draft.allDay && draft.start && <div className="time-summary">Starts <b>{timeLabel(draft.start)}</b>, ends {endLabel}</div>}
           </Q>
 
           {!draft.allDay && (
@@ -194,6 +210,21 @@ export function AddPlan({ onClose, editId, date: initialDate, personId, editMode
               <Chips scroll options={DURATIONS.map(([l, v]) => ({ label: l, value: String(v) }))} value={String(draft.duration)} onChange={(v) => set({ duration: +v })} />
             </Q>
           )}
+
+          <Q label="Does it happen again?">
+            <Chips options={[
+              { label: 'Just this once', value: 'none' },
+              { label: `Every week · ${DOW_LONG[weekdayOf(draft.date)]}${atTime}`, value: 'weekly' },
+              { label: 'Every weekday (Mon–Fri)', value: 'weekdays' }, { label: 'Every day', value: 'daily' },
+              { label: 'Every 2 weeks', value: 'biweekly' }, { label: 'Every month', value: 'monthly' }, { label: 'On some days each week…', value: 'days' },
+            ]} value={draft.repeat} onChange={(v) => set({ repeat: v as Repeat })} />
+            {draft.repeat !== 'none' && <div className="time-summary">It will show up {repeatText(draft)}{atTime} until you stop it.</div>}
+            {draft.repeat === 'days' && (
+              <div style={{ marginTop: 8 }}>
+                <MultiChips options={DOW.map((l, i) => ({ label: l, value: String(i) }))} value={draft.repeatDays.map(String)} onChange={(v) => set({ repeatDays: v.map(Number).sort() })} />
+              </div>
+            )}
+          </Q>
 
           <Q label="Where?">
             <div className="chips scroll" style={{ marginBottom: 8 }}>
@@ -246,18 +277,6 @@ export function AddPlan({ onClose, editId, date: initialDate, personId, editMode
             </>
           )}
 
-          <Q label="Does it repeat?">
-            <Chips options={[
-              { label: 'Just once', value: 'none' }, { label: 'Every day', value: 'daily' }, { label: 'Weekdays', value: 'weekdays' },
-              { label: `Every ${DOW[weekdayOf(draft.date)]}`, value: 'weekly' }, { label: 'Every 2 weeks', value: 'biweekly' },
-              { label: 'Every month', value: 'monthly' }, { label: 'Some days…', value: 'days' },
-            ]} value={draft.repeat} onChange={(v) => set({ repeat: v as Repeat })} />
-            {draft.repeat === 'days' && (
-              <div style={{ marginTop: 8 }}>
-                <MultiChips options={DOW.map((l, i) => ({ label: l, value: String(i) }))} value={draft.repeatDays.map(String)} onChange={(v) => set({ repeatDays: v.map(Number).sort() })} />
-              </div>
-            )}
-          </Q>
 
           <Q label="Remind me">
             <MultiChips options={[
@@ -328,7 +347,9 @@ function fromEvent(e: EventRow, tz: string, occDate?: string, editMode?: string)
     else if (days.length <= 1) repeat = r.interval === 2 ? 'biweekly' : 'weekly';
     else repeat = 'days';
   }
+  const base = TITLES.find((t) => e.title === t || (DETAILS[t] && e.title.toLowerCase().endsWith(t.toLowerCase()))) ?? null;
   return {
+    base, detail: base && DETAILS[base] && e.title !== base ? e.title.replace(new RegExp(`\\s*${base}$`, 'i'), '') : '',
     title: e.title, category: e.category, personIds: e.person_ids, date: editMode === 'single' && occDate ? occDate : s.date, start: e.all_day ? null : s.time,
     duration: Math.max(5, Math.round((Date.parse(e.end_at) - Date.parse(e.start_at)) / 60000)), allDay: e.all_day,
     location: e.location ?? '', transport: e.transport_mode, vehicleId: e.vehicle_id, driverId: e.self_drive ? 'self' : e.driver_id, pickupFrom: e.pickup_from,

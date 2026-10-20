@@ -6,11 +6,13 @@ import { addDays, diffMin } from '@engine/time.ts';
 import { PlanItemView } from '../ui/PlanItemView';
 import { TaskRowView } from './Tasks';
 import { Banner, Empty } from '../ui/kit';
+import { LocalNotifyPrompt } from './Reminders';
+import { localNotifyState } from '../lib/localNotify';
 import { ICar, IClock, IAlert } from '../ui/icons';
 import { dayLabel, fmtTime, greeting, longDate, fmtDuration } from '../lib/format';
 
 export function Home() {
-  const { me, online, canEdit } = useStore();
+  const { me, online, canEdit, demo } = useStore();
   const data = useData();
   const { now, tz, today } = useToday();
   const [view, setView] = useState<'today' | 'tomorrow' | 'week'>('today');
@@ -35,6 +37,7 @@ export function Home() {
         <Banner kind="info">Start by adding the people you plan for — <Link to="/people">go to People</Link>. Then add your cars and driver under <Link to="/more/transport">More → Cars &amp; drivers</Link>, and your home address in <Link to="/more/settings">Settings</Link>.</Banner>
       )}
 
+      {demo && data.events.length > 0 && localNotifyState() === 'off' && <LocalNotifyPrompt />}
       {view === 'week' ? <WeekList days={plan.days} tz={tz} today={today} now={now} /> : day && <DayView day={day} tz={tz} now={now} today={today} isToday={view === 'today'} mapsStatus={plan.maps.status} />}
     </div>
   );
