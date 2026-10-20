@@ -7,8 +7,24 @@ import { addDays, localParts, zonedToUtc } from '@engine/time.ts';
 
 const KEY = 'daybook:demo';
 export const demoOn = () => { try { return localStorage.getItem(KEY + ':on') === '1'; } catch { return false; } };
-export function startDemo() { localStorage.setItem(KEY + ':on', '1'); location.reload(); }
-export function endDemo() { localStorage.removeItem(KEY + ':on'); localStorage.removeItem(KEY); location.reload(); }
+export type LocalMode = 'sample' | 'own';
+export const localMode = (): LocalMode => { try { return localStorage.getItem(KEY + ':mode') === 'own' ? 'own' : 'sample'; } catch { return 'sample'; } };
+export function startDemo(mode: LocalMode = 'sample') { localStorage.setItem(KEY + ':on', '1'); localStorage.setItem(KEY + ':mode', mode); localStorage.removeItem(KEY); location.reload(); }
+export function endDemo() { localStorage.removeItem(KEY + ':on'); localStorage.removeItem(KEY + ':mode'); localStorage.removeItem(KEY); location.reload(); }
+
+/** drop every sample item, keep what the user added, and switch to "my own family" */
+export function clearSampleLocal() {
+  const d = load();
+  const keep = <T,>(list: T[]) => list.filter((x) => !(x as { is_sample?: boolean }).is_sample);
+  const events = keep(d.events);
+  const ids = new Set(events.map((e) => e.id));
+  const next = { ...d, people: keep(d.people), places: keep(d.places), vehicles: keep(d.vehicles), drivers: keep(d.drivers), events,
+    tasks: keep(d.tasks).filter((t) => !t.event_id || ids.has(t.event_id)), notes: keep(d.notes), reminders: [],
+    household: { ...d.household, name: d.household.name === 'Demo family' ? 'My family' : d.household.name } };
+  localStorage.setItem(KEY, JSON.stringify(next));
+  localStorage.setItem(KEY + ':mode', 'own');
+  location.reload();
+}
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 const TABLE: Record<string, keyof Data> = { people: 'people', places: 'places', vehicles: 'vehicles', drivers: 'drivers', resource_blocks: 'blocks', events: 'events', tasks: 'tasks', reminders: 'reminders', notes: 'notes', invites: 'invites' };
@@ -56,7 +72,17 @@ function sample(): Data {
 
 function load(): Data {
   try { const s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch { /* fall through */ }
-  return sample();
+  return localMode() === 'own' ? empty() : sample();
+}
+
+function empty(): Data {
+  const H = 'demo';
+  return {
+    household: { id: H, name: 'My family', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata', home_label: 'Home', home_address: null,
+      traffic_buffer_min: 15, fallback_travel_min: 30, default_reminders: [1440, 60], leave_reminder_min: 15 },
+    members: [{ household_id: H, user_id: 'demo-user', role: 'owner', email: 'this device', display_name: null, person_id: null, driver_id: null, email_summary: false, summary_hour: 7 }],
+    invites: [], people: [], places: [], vehicles: [], drivers: [], blocks: [], events: [], tasks: [], reminders: [], notes: [],
+  } as unknown as Data;
 }
 
 export function DemoStoreProvider({ children }: { children: ReactNode }) {
@@ -97,7 +123,7 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
       commit({ ...cur, [k]: (cur[k] as unknown as { id: string }[]).filter((x) => x.id !== id) });
       if (!opts?.quiet) toast(opts?.message ?? 'Deleted'); return true;
     },
-    travel: new Map(), maps: { status: 'off', error: null, checking: false, offline: false }, ensureTravel: () => {}, online: true, demo: true,
+    travel: new Map(), maps: { status: 'off', error: null, checking: false, offline: false }, ensureTravel: () => {}, online: true, demo: localMode(),
   } as unknown as StoreCtx;
   return <StoreContext.Provider value={ctx}>{children}</StoreContext.Provider>;
 }

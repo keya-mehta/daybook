@@ -16,7 +16,7 @@ import { Login, Onboarding, ResetPassword } from './screens/Auth';
 import { AddPlan } from './screens/AddPlan';
 import { EventSheet } from './screens/EventSheet';
 import { Banner } from './ui/kit';
-import { startDemo, endDemo } from './lib/demo';
+import { startDemo, endDemo, clearSampleLocal } from './lib/demo';
 
 export function App() {
   const { session, authReady, data, loading, loadError, householdId, canEdit, demo } = useStore();
@@ -25,8 +25,9 @@ export function App() {
     <div className="center-page"><div className="auth-box">
       <div className="logo">Day<i>book</i></div>
       <p className="ink2" style={{ marginTop: 4 }}>Everyone's plans, one clear day.</p>
-      <button className="btn primary block" style={{ marginTop: 22 }} onClick={startDemo}>Try it now with a sample family</button>
-      <p className="small muted" style={{ marginTop: 8 }}>The demo runs on this device only. You can add and change plans; nothing is sent anywhere.</p>
+      <button className="btn primary block" style={{ marginTop: 22 }} onClick={() => startDemo('own')}>Start with my own family</button>
+      <button className="btn block" style={{ marginTop: 10 }} onClick={() => startDemo('sample')}>Look at a sample family first</button>
+      <p className="small muted" style={{ marginTop: 8 }}>For now, everything is saved in this browser on this device. Download a backup any time from More → Settings.</p>
       <Banner kind="info">Accounts, syncing between phones, reminders and Google Maps switch on once the database is connected (setup steps 1–5 in the README).</Banner>
     </div></div>
   );
@@ -39,7 +40,8 @@ export function App() {
     : <><Onboarding /><Toasts /></>;
   return (
     <div className="app">
-      {demo && <div className="demo-bar"><span>Demo — saved on this device only</span><button onClick={() => confirm('Leave the demo and clear its data?') && endDemo()}>Leave demo</button></div>}
+      {demo === 'sample' && <div className="demo-bar"><span>Sample family — just to look around</span><button onClick={() => confirm('Remove the sample family and start with your own? Anything you added yourself is kept.') && clearSampleLocal()}>Use my own family</button></div>}
+      {demo === 'own' && <div className="demo-bar"><span>Saved in this browser only</span><button onClick={() => confirm('Delete everything in this browser and start again?') && endDemo()}>Start over</button></div>}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/calendar" element={<Calendar />} />

@@ -32,7 +32,7 @@ export function Home() {
       {!online && <Banner>You're offline. Showing the last saved plan — changes can't be saved until you're back online.</Banner>}
       {plan.maps.status === 'error' && online && <Banner>Couldn't get travel times from Google Maps{plan.maps.error ? `: ${plan.maps.error}` : ''}. Leave times may be missing.</Banner>}
       {data.people.length === 0 && canEdit && (
-        <Banner kind="info">Start by adding the people you plan for — <Link to="/people">go to People</Link>. Or load sample data from <Link to="/more/settings">Settings</Link> to try things out.</Banner>
+        <Banner kind="info">Start by adding the people you plan for — <Link to="/people">go to People</Link>. Then add your cars and driver under <Link to="/more/transport">More → Cars &amp; drivers</Link>, and your home address in <Link to="/more/settings">Settings</Link>.</Banner>
       )}
 
       {view === 'week' ? <WeekList days={plan.days} tz={tz} today={today} now={now} /> : day && <DayView day={day} tz={tz} now={now} today={today} isToday={view === 'today'} mapsStatus={plan.maps.status} />}

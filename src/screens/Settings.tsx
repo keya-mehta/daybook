@@ -8,6 +8,7 @@ import { PushPrompt } from './Reminders';
 import { disablePush, pushState, testPush, isIOS, isStandalone, type PushState } from '../lib/push';
 import { toast } from '../lib/toast';
 import { timeLabel } from '../lib/format';
+import { clearSampleLocal } from '../lib/demo';
 import { localParts } from '@engine/time.ts';
 import { formatRule, parseRule } from '@engine/recurrence.ts';
 
@@ -46,7 +47,8 @@ export function Settings() {
     <div className="page">
       <BackTo />
       <div className="page-head"><h1>Settings</h1></div>
-      {demo && <Banner kind="info">This is the demo. Notifications, Google Calendar, email, sharing and Google Maps travel times work once the database is connected. Drives here use a rough 30-minute default.</Banner>}
+      {demo && <Banner kind="info">Daybook is running in this browser only. Phone notifications, syncing between devices, Google Calendar, email, sharing and Google Maps travel times switch on once the database is connected. Until then drives use the rough default below — download a backup now and then.</Banner>}
+      {demo === 'sample' && <button className="btn primary" style={{ marginTop: 10 }} onClick={() => confirm('Remove the sample family? Anything you added yourself is kept.') && clearSampleLocal()}>Remove sample family and use my own</button>}
 
       {canEdit && (
         <div className="section">
@@ -87,7 +89,7 @@ export function Settings() {
         </div>
       )}
 
-      <div className="section">
+      {!demo && <div className="section">
         <div className="section-title">Notifications on this device</div>
         <PushPrompt />
         {push === 'on' && (
@@ -97,9 +99,9 @@ export function Settings() {
             <button className="btn ghost" onClick={() => run('off', async () => { await disablePush(); setPush('off'); }, 'Notifications off for this device')}>Turn off</button>
           </div>
         )}
-      </div>
+      </div>}
 
-      {me && me.role !== 'limited' && (
+      {!demo && me && me.role !== 'limited' && (
         <div className="section">
           <div className="section-title">Morning email</div>
           <label className="check"><input type="checkbox" checked={me.email_summary} onChange={(e) => save('household_members', { household_id: me.household_id, user_id: me.user_id, email_summary: e.target.checked }, { message: e.target.checked ? 'Daily email on' : 'Daily email off' })} />Email me the day's plan each morning ({me.email})</label>
@@ -109,7 +111,7 @@ export function Settings() {
         </div>
       )}
 
-      {canEdit && (
+      {canEdit && !demo && (
         <div className="section">
           <div className="section-title">Google Calendar</div>
           {gcal?.connected ? (
@@ -131,7 +133,7 @@ export function Settings() {
         </div>
       )}
 
-      <div className="section">
+      {!demo && <div className="section">
         <div className="section-title"><span>Who can see this</span>{owner && <button className="btn ghost" onClick={() => setInviting(true)}>Invite</button>}</div>
         {data.members.map((m) => (
           <div key={m.user_id} className="item" style={{ cursor: 'default' }}>
@@ -148,9 +150,9 @@ export function Settings() {
             {owner && <button className="btn ghost" onClick={async () => { const { error } = await supabase.from('invites').delete().eq('id', i.id); if (!error) { toast('Invite cancelled'); reload(); } }}>Cancel</button>}
           </div>
         ))}
-      </div>
+      </div>}
 
-      {canEdit && (
+      {canEdit && !demo && (
         <div className="section">
           <div className="section-title">Sample data</div>
           <p className="small muted">Load a few realistic plans to see how Daybook works. Sample items are labelled and can be removed in one tap without touching anything you added.</p>
@@ -177,12 +179,12 @@ export function Settings() {
         </div>
       )}
 
-      <div className="section">
+      {!demo && <div className="section">
         <div className="section-title">Account</div>
         {households.length > 1 && <Q label="Switch family"><Chips options={households.map((h) => ({ label: h.name, value: h.id }))} value={householdId} onChange={setHouseholdId} /></Q>}
         <p className="small muted">Signed in as {session?.user.email}</p>
         <button className="btn" onClick={() => supabase.auth.signOut()}>Sign out</button>
-      </div>
+      </div>}
       {inviting && <InviteSheet onClose={() => setInviting(false)} />}
     </div>
   );
