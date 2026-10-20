@@ -14,7 +14,7 @@ import { formatRule, parseRule } from '@engine/recurrence.ts';
 const ZONES = ['Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'Australia/Sydney'];
 
 export function Settings() {
-  const { save, me, canEdit, householdId, households, setHouseholdId, maps, reload, session } = useStore();
+  const { save, me, canEdit, householdId, households, setHouseholdId, maps, reload, session, demo } = useStore();
   const data = useData();
   const hh = data.household;
   const [params, setParams] = useSearchParams();
@@ -46,6 +46,7 @@ export function Settings() {
     <div className="page">
       <BackTo />
       <div className="page-head"><h1>Settings</h1></div>
+      {demo && <Banner kind="info">This is the demo. Notifications, Google Calendar, email, sharing and Google Maps travel times work once the database is connected. Drives here use a rough 30-minute default.</Banner>}
 
       {canEdit && (
         <div className="section">

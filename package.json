@@ -7,7 +7,8 @@
     "build": "tsc --noEmit -p . && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "check:functions": "cd supabase/functions && echo {\\\"nodeModulesDir\\\":\\\"auto\\\"} > deno.json && ../../node_modules/.bin/deno check */index.ts; rm -rf deno.json deno.lock node_modules"
+    "check:functions": "cd supabase/functions && echo {\\\"nodeModulesDir\\\":\\\"auto\\\"} > deno.json && ../../node_modules/.bin/deno check */index.ts; rm -rf deno.json deno.lock node_modules",
+    "publish:pages": "node scripts/publish-pages.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

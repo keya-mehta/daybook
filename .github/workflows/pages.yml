@@ -1,14 +1,15 @@
-# Builds Daybook and publishes it to GitHub Pages on every push to main.
-# Repo → Settings → Pages → Source must be "GitHub Actions".
-# Repo → Settings → Secrets and variables → Actions → Variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_VAPID_PUBLIC_KEY
+# Rebuilds Daybook on every push to main and saves the finished site in the repo root,
+# so GitHub Pages works whether its Source is "Deploy from a branch" (main, root) or "GitHub Actions".
+# Once Supabase is set up, add Repo → Settings → Secrets and variables → Actions → Variables:
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_VAPID_PUBLIC_KEY
 name: Publish site
 on:
   push: { branches: [main] }
   workflow_dispatch:
-permissions: { contents: read, pages: write, id-token: write }
-concurrency: { group: pages, cancel-in-progress: true }
+permissions: { contents: write, pages: write, id-token: write }
+concurrency: { group: pages, cancel-in-progress: false }
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,19 +17,20 @@ jobs:
         with: { node-version: 20, cache: npm }
       - run: npm ci
       - run: npm test
-      - run: npm run build
+      - run: npm run publish:pages
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
-      - run: cp dist/index.html dist/404.html   # lets links like /daybook/tasks open the app
+      - name: Save the built site to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A -- . ':!dist' ':!node_modules'
+          git diff --cached --quiet || (git commit -m "Publish site [skip ci]" && git push)
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: { name: github-pages, url: '${{ steps.d.outputs.page_url }}' }
-    steps:
-      - id: d
+      - name: Deploy (used when Pages source is "GitHub Actions")
         uses: actions/deploy-pages@v4
+        continue-on-error: true

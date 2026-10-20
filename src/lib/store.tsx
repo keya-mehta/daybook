@@ -31,6 +31,7 @@ interface Ctx {
   remove: (table: Table, id: string, opts?: { quiet?: boolean; message?: string }) => Promise<boolean>;
   travel: Map<string, TravelEstimate>; maps: MapsStatus; ensureTravel: (from: string, to: string) => void;
   online: boolean;
+  demo?: boolean;
 }
 const C = createContext<Ctx>(null as unknown as Ctx);
 export const StoreContext = C; // used by tests/preview harness

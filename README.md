@@ -85,11 +85,12 @@ Open `supabase/cron.sql`, replace `<PROJECT_REF>` and `<CRON_SECRET>`, and run i
 
 ### 5. The website
 
-**Option A — GitHub Pages (already set up in this repo).**
-1. Repo → **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. Repo → **Settings → Secrets and variables → Actions → Variables** tab → add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` (all public values).
-3. Repo → **Actions → Publish site → Run workflow** (it also runs on every push).
-The site appears at `https://<github-user>.github.io/daybook/`. Use that address (with `/daybook/`) for `APP_URL` and in Supabase's URL configuration.
+**Option A — GitHub Pages (already set up in this repo).** The finished site is saved in the repo root on every push, so Pages works with either Source setting.
+1. Repo → **Settings → Secrets and variables → Actions → Variables** tab → add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` (all public values).
+2. Repo → **Actions → Publish site → Run workflow** to rebuild with them.
+The site is at `https://<github-user>.github.io/daybook/`. Use that address (with `/daybook/`) for `APP_URL` and in Supabase's URL configuration. Until these are set, the site offers a demo that runs on the device only.
+
+To rebuild by hand: `npm run publish:pages` and commit.
 
 **Option B — Vercel.** Import the repo in Vercel and add these environment variables:
 
@@ -117,7 +118,7 @@ To try it before entering real data, choose "Yes, show examples" at the welcome 
 ```bash
 cp .env.example .env.local     # fill in
 npm install
-npm run dev                    # app at http://localhost:5173
+npm run dev                    # app at http://localhost:5173 (page source is in web/)
 npm test                       # planner unit tests
 npm run check:functions        # type-check the server functions
 ```

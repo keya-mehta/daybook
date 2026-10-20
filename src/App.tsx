@@ -16,11 +16,20 @@ import { Login, Onboarding, ResetPassword } from './screens/Auth';
 import { AddPlan } from './screens/AddPlan';
 import { EventSheet } from './screens/EventSheet';
 import { Banner } from './ui/kit';
+import { startDemo, endDemo } from './lib/demo';
 
 export function App() {
-  const { session, authReady, data, loading, loadError, householdId, canEdit } = useStore();
+  const { session, authReady, data, loading, loadError, householdId, canEdit, demo } = useStore();
   const loc = useLocation();
-  if (!configured) return <div className="center-page"><div className="auth-box"><div className="logo">Day<i>book</i></div><Banner>Daybook is published, but it isn't connected to its database yet. Finish setup steps 1–5 in the README (Supabase project, then the three VITE_ values), and this page will show the sign-in screen.</Banner></div></div>;
+  if (!configured && !demo) return (
+    <div className="center-page"><div className="auth-box">
+      <div className="logo">Day<i>book</i></div>
+      <p className="ink2" style={{ marginTop: 4 }}>Everyone's plans, one clear day.</p>
+      <button className="btn primary block" style={{ marginTop: 22 }} onClick={startDemo}>Try it now with a sample family</button>
+      <p className="small muted" style={{ marginTop: 8 }}>The demo runs on this device only. You can add and change plans; nothing is sent anywhere.</p>
+      <Banner kind="info">Accounts, syncing between phones, reminders and Google Maps switch on once the database is connected (setup steps 1–5 in the README).</Banner>
+    </div></div>
+  );
   if (loc.pathname === '/reset') return <ResetPassword />;
   if (!authReady) return <Splash />;
   if (!session) return <><Login /><Toasts /></>;
@@ -30,6 +39,7 @@ export function App() {
     : <><Onboarding /><Toasts /></>;
   return (
     <div className="app">
+      {demo && <div className="demo-bar"><span>Demo — saved on this device only</span><button onClick={() => confirm('Leave the demo and clear its data?') && endDemo()}>Leave demo</button></div>}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/calendar" element={<Calendar />} />
