@@ -1,0 +1,11 @@
+# Supabase CLI config (only the parts Daybook needs)
+project_id = "daybook"
+
+[functions.plan]
+verify_jwt = true
+[functions.dispatch-reminders]
+verify_jwt = false   # called by cron with x-cron-secret; user test calls are checked in code
+[functions.email]
+verify_jwt = false
+[functions.gcal]
+verify_jwt = false   # Google redirects here without a Supabase token; every action checks auth itself
