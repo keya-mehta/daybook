@@ -19,11 +19,11 @@ export function Login() {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
         if (error) throw error;
       } else if (mode === 'up') {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: pw, options: { emailRedirectTo: location.origin } });
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: pw, options: { emailRedirectTo: location.origin + import.meta.env.BASE_URL } });
         if (error) throw error;
         if (!data.session) setMsg({ kind: 'ok', text: `Check ${email} for a link to confirm your account, then come back and sign in.` });
       } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}/reset` });
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}${import.meta.env.BASE_URL}reset` });
         if (error) throw error;
         setMsg({ kind: 'ok', text: 'If that email has an account, a reset link is on its way.' });
       }
@@ -60,7 +60,7 @@ export function ResetPassword() {
       <Q label="New password"><input className="input" type="password" minLength={8} value={pw} onChange={(e) => setPw(e.target.value)} /></Q>
       <button className="btn primary block" style={{ marginTop: 14 }} disabled={pw.length < 8} onClick={async () => {
         const { error } = await supabase.auth.updateUser({ password: pw });
-        if (error) toast(error.message, 'error'); else { toast('Password changed'); location.href = '/'; }
+        if (error) toast(error.message, 'error'); else { toast('Password changed'); location.href = import.meta.env.BASE_URL; }
       }}>Save password</button>
     </div></div>
   );

@@ -85,7 +85,13 @@ Open `supabase/cron.sql`, replace `<PROJECT_REF>` and `<CRON_SECRET>`, and run i
 
 ### 5. The website
 
-Push this folder to GitHub, import it in Vercel, and add these environment variables:
+**Option A — GitHub Pages (already set up in this repo).**
+1. Repo → **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. Repo → **Settings → Secrets and variables → Actions → Variables** tab → add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` (all public values).
+3. Repo → **Actions → Publish site → Run workflow** (it also runs on every push).
+The site appears at `https://<github-user>.github.io/daybook/`. Use that address (with `/daybook/`) for `APP_URL` and in Supabase's URL configuration.
+
+**Option B — Vercel.** Import the repo in Vercel and add these environment variables:
 
 ```
 VITE_SUPABASE_URL=https://<PROJECT_REF>.supabase.co

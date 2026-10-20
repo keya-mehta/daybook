@@ -20,7 +20,7 @@ import { Banner } from './ui/kit';
 export function App() {
   const { session, authReady, data, loading, loadError, householdId, canEdit } = useStore();
   const loc = useLocation();
-  if (!configured) return <div className="center-page"><div className="auth-box"><div className="logo">Day<i>book</i></div><Banner>This copy isn't connected to its database yet. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see README).</Banner></div></div>;
+  if (!configured) return <div className="center-page"><div className="auth-box"><div className="logo">Day<i>book</i></div><Banner>Daybook is published, but it isn't connected to its database yet. Finish setup steps 1–5 in the README (Supabase project, then the three VITE_ values), and this page will show the sign-in screen.</Banner></div></div>;
   if (loc.pathname === '/reset') return <ResetPassword />;
   if (!authReady) return <Splash />;
   if (!session) return <><Login /><Toasts /></>;
